@@ -1,6 +1,7 @@
 package io.nivelle.finansaurus.authentication.adapter;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,6 +23,6 @@ public class LoginController {
         if (password.equals(resources.get("password"))) {
             return ResponseEntity.ok(Map.of("user", username));
         }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 }
