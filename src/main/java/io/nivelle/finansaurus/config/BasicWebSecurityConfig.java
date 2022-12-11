@@ -13,9 +13,8 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 public class BasicWebSecurityConfig {
-    @Value("${security.username}")
-    private String username;
-    @Value("${security.password}")
+    private static final String USER = "user";
+    @Value("${SECURITY_PASSWORD}")
     private String password;
 
     @Bean
@@ -34,7 +33,7 @@ public class BasicWebSecurityConfig {
     @Bean
     public InMemoryUserDetailsManager userDetailsService() {
         UserDetails user = User
-                .withUsername(username)
+                .withUsername(USER)
                 .password("{noop}" + password)
                 .roles("ADMIN")
                 .build();
