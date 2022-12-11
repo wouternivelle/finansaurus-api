@@ -24,8 +24,6 @@ public class BasicWebSecurityConfig {
                 .cors()
                 .and()
                 .csrf().disable()
-                .authorizeRequests().antMatchers("/login").permitAll()
-                .and()
                 .authorizeRequests().anyRequest().authenticated()
                 .and()
                 .httpBasic();
