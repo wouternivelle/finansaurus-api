@@ -20,25 +20,16 @@ import javax.persistence.EntityManager;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Sql(scripts = {"classpath:truncate.sql"})
 @TestPropertySource(properties = {
-        "security.username=user",
-        "security.password=password"})
+        "SECURITY_PASSWORD=password"})
 public abstract class CommonIntegrationTest {
-    @Value("${security.username}")
-    private String username;
-    @Value("${security.password}")
-    private String password;
-
     @LocalServerPort
     protected int port;
-
     @Autowired
     protected EntityManager entityManager;
     @Autowired
     protected TransactionTemplate transactionTemplate;
-
     @Autowired
     protected TestRestTemplate restTemplate;
-
     @Autowired
     protected AccountRepository accountRepository;
     @Autowired
@@ -49,6 +40,8 @@ public abstract class CommonIntegrationTest {
     protected TransactionRepository transactionRepository;
     @Autowired
     protected BalanceRepository balanceRepository;
+    @Value("${SECURITY_PASSWORD}")
+    private String password;
 
     protected Transaction saveTransaction(Transaction transaction) {
         return getRestTemplate().postForEntity("http://localhost:" + port + "/transactions", transaction, Transaction.class)
@@ -56,7 +49,7 @@ public abstract class CommonIntegrationTest {
     }
 
     protected TestRestTemplate getRestTemplate() {
-        return restTemplate.withBasicAuth(username, password);
+        return restTemplate.withBasicAuth("user", password);
     }
 
     protected void runInTransaction(Runnable runnable) {
