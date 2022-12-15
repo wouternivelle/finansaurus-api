@@ -3,8 +3,6 @@ package io.nivelle.finansaurus.categories.application;
 import io.nivelle.finansaurus.categories.domain.Category;
 import io.nivelle.finansaurus.categories.domain.CategoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -29,8 +27,8 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public Page<Category> list(Pageable pageable) {
-        return repository.findAll(pageable);
+    public List<Category> list() {
+        return repository.findAll();
     }
 
     @Override

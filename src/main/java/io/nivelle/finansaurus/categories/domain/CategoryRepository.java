@@ -10,6 +10,8 @@ import java.util.List;
 public interface CategoryRepository extends PagingAndSortingRepository<Category, Long> {
     Category findCategoryByType(CategoryType type);
 
+    List<Category> findAll();
+
     List<Category> findAllBySystemIsFalse();
 
     @Query("select case when count(c) > 0 then true else false end from Category c where c.system = true and c.id = :id")

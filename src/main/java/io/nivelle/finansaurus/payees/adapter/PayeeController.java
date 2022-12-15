@@ -3,13 +3,13 @@ package io.nivelle.finansaurus.payees.adapter;
 import io.nivelle.finansaurus.payees.application.PayeeService;
 import io.nivelle.finansaurus.payees.domain.Payee;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
-import org.springframework.hateoas.PagedModel;
+import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping(value = "/payees")
@@ -35,10 +35,10 @@ public class PayeeController {
     }
 
     @GetMapping
-    public PagedModel<PayeeResource> list(Pageable pageable) {
-        Page<Payee> payees = service.list(pageable);
+    public CollectionModel<PayeeResource> list() {
+        List<Payee> payees = service.list();
 
-        return pagedResourcesAssembler.toModel(payees, resourceAssembler);
+        return CollectionModel.of(payees.stream().map(payee -> resourceAssembler.toModel(payee)).toList());
     }
 
     @GetMapping("{id}")

@@ -4,11 +4,8 @@ import io.nivelle.finansaurus.categories.application.CategoryService;
 import io.nivelle.finansaurus.categories.domain.Category;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.CollectionModel;
-import org.springframework.hateoas.PagedModel;
 import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -46,10 +43,10 @@ public class CategoryController {
     }
 
     @GetMapping
-    public PagedModel<CategoryResource> list(Pageable pageable) {
-        Page<Category> payees = service.list(pageable);
+    public CollectionModel<CategoryResource> list() {
+        List<Category> categories = service.list();
 
-        return pagedResourcesAssembler.toModel(payees, resourceAssembler);
+        return CollectionModel.of(categories.stream().map(category -> resourceAssembler.toModel(category)).toList());
     }
 
     @GetMapping("no-system")

@@ -3,13 +3,13 @@ package io.nivelle.finansaurus.accounts.adapter;
 import io.nivelle.finansaurus.accounts.application.AccountService;
 import io.nivelle.finansaurus.accounts.domain.Account;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
-import org.springframework.hateoas.PagedModel;
+import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping(value = "/accounts")
@@ -35,10 +35,10 @@ public class AccountController {
     }
 
     @GetMapping
-    public PagedModel<AccountResource> list(Pageable pageable) {
-        Page<Account> accounts = service.list(pageable);
+    public CollectionModel<AccountResource> list() {
+        List<Account> accounts = service.list();
 
-        return pagedResourcesAssembler.toModel(accounts, resourceAssembler);
+        return CollectionModel.of(accounts.stream().map(account -> resourceAssembler.toModel(account)).toList());
     }
 
     @GetMapping("{id}")

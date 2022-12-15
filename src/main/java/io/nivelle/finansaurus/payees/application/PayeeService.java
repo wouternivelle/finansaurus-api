@@ -1,8 +1,8 @@
 package io.nivelle.finansaurus.payees.application;
 
 import io.nivelle.finansaurus.payees.domain.Payee;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+
+import java.util.List;
 
 public interface PayeeService {
     Payee save(Payee payee);
@@ -11,5 +11,5 @@ public interface PayeeService {
 
     void delete(long id);
 
-    Page<Payee> list(Pageable pageable);
+    List<Payee> list();
 }

@@ -12,12 +12,11 @@ import io.nivelle.finansaurus.transactions.domain.TransactionRepository;
 import io.nivelle.finansaurus.transactions.domain.TransactionType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 public class AccountServiceImpl implements AccountService {
@@ -66,8 +65,8 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public Page<Account> list(Pageable pageable) {
-        return repository.findAll(pageable);
+    public List<Account> list() {
+        return repository.findAll();
     }
 
     private void addToBalance(Transaction transaction) {
