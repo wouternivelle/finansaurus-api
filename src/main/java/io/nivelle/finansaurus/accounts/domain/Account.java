@@ -77,7 +77,7 @@ public class Account {
     public static final class Builder {
         private Long id;
         @NotNull
-        private BigDecimal amount;
+        private BigDecimal amount = BigDecimal.ZERO;
         @NotNull
         private String name;
         private boolean starred;

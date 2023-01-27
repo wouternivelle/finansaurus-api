@@ -49,7 +49,7 @@ public class TransactionServiceImpl implements TransactionService {
         if (transaction.getId() == null) {
             addTransaction(transaction);
         } else {
-            Transaction oldTransaction = repository.findById(transaction.getId()).orElseThrow(() -> new TransactionNotFoundException(transaction.getId()));
+            Transaction oldTransaction = fetch(transaction.getId());
             deleteTransaction(oldTransaction);
             addTransaction(Transaction.builder()
                     .date(transaction.getDate())
@@ -139,7 +139,7 @@ public class TransactionServiceImpl implements TransactionService {
         Category incomeNextMonth = categoryRepository.findCategoryByType(CategoryType.INCOME_NEXT_MONTH);
         boolean isIncomeNextMonth = transaction.getCategoryId().equals(incomeNextMonth.getId());
         Balance balance = findOrCreateBalance(transaction, isIncomeNextMonth);
-        if (isIncomeNextMonth) {
+        if (isIncoming(transaction)) {
             balance.updateIncoming(balance.getIncoming().subtract(transaction.getAmount()));
         } else {
             BigDecimal amount;
@@ -175,8 +175,9 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
+    @Transactional
     public void delete(long id) {
-        Transaction transaction = repository.findById(id).orElseThrow(() -> new TransactionNotFoundException(id));
+        Transaction transaction = fetch(id);
         deleteTransaction(transaction);
     }
 
