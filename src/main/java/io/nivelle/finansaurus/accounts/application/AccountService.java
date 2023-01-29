@@ -5,7 +5,7 @@ import io.nivelle.finansaurus.accounts.domain.Account;
 import java.util.List;
 
 public interface AccountService {
-    Account save(Account category);
+    Account save(Account account);
 
     void delete(long id);
 
