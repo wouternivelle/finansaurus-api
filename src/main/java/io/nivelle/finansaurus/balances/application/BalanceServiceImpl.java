@@ -65,7 +65,7 @@ public class BalanceServiceImpl implements BalanceService {
         Balance currentBalance = repository.findById(id).orElseThrow(BalanceNotFoundException::new);
         LocalDate currentMonth = LocalDate.of(currentBalance.getYear(), currentBalance.getMonth(), 1);
         LocalDate previousMonth = currentMonth.minusMonths(1);
-        Optional<Balance> previousBalance = repository.findByMonthAndYear(previousMonth.getYear(), previousMonth.getMonthValue());
+        Optional<Balance> previousBalance = repository.findByMonthAndYear(previousMonth.getMonthValue(), previousMonth.getYear());
 
         if (previousBalance.isPresent()) {
             currentBalance.getCategories().forEach(category -> {
