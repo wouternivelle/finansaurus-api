@@ -315,6 +315,17 @@ public class TransactionServiceImplTest {
         verify(repository).listIncomingForBalance(eq(LocalDate.of(2023, 1, 1)));
     }
 
+    @Test
+    public void whenListForMonthAndCategory_thenListReturned() {
+        when(repository.listForPeriodAndCategory(eq(LocalDate.of(2023, 1, 1)), eq(LocalDate.of(2023, 1, 31)), eq(1L)))
+                .thenReturn(List.of(Transaction.builder().build()));
+
+        List<Transaction> result = service.listForMonthAndCategory(1, 2023, 1L);
+
+        assertThat(result, hasSize(1));
+        verify(repository).listForPeriodAndCategory(eq(LocalDate.of(2023, 1, 1)), eq(LocalDate.of(2023, 1, 31)), eq(1L));
+    }
+
     private Transaction buildTransaction(TransactionType type) {
         return Transaction.builder()
                 .date(LocalDate.now())
@@ -326,6 +337,7 @@ public class TransactionServiceImplTest {
                 .note("a note")
                 .build();
     }
+
     private Transaction buildExistingTransaction(TransactionType type) {
         return Transaction.builder()
                 .id(1L)

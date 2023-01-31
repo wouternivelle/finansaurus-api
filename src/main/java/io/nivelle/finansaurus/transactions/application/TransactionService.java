@@ -16,4 +16,6 @@ public interface TransactionService {
     Transaction fetch(long id);
 
     List<Transaction> listIncomingForBalance(int year, int month);
+
+    List<Transaction> listForMonthAndCategory(int month, int year, Long categoryId);
 }

@@ -26,6 +26,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import static java.time.temporal.TemporalAdjusters.lastDayOfMonth;
+
 @Service
 public class TransactionServiceImpl implements TransactionService {
     private TransactionRepository repository;
@@ -196,5 +198,13 @@ public class TransactionServiceImpl implements TransactionService {
         LocalDate date = LocalDate.of(year, month, 1);
 
         return repository.listIncomingForBalance(date);
+    }
+
+    @Override
+    public List<Transaction> listForMonthAndCategory(int month, int year, Long categoryId) {
+        LocalDate start = LocalDate.of(year, month, 1);
+        LocalDate end = start.with(lastDayOfMonth());
+
+        return repository.listForPeriodAndCategory(start, end, categoryId);
     }
 }

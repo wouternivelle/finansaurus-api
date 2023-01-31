@@ -76,4 +76,11 @@ public class TransactionController {
 
         return CollectionModel.of(transactions.stream().map(transaction -> resourceAssembler.toModel(transaction)).toList());
     }
+
+    @GetMapping("list/{year}/{month}/{category}")
+    public CollectionModel<TransactionResource> listForMonthAndCategory(@PathVariable("year") Integer year, @PathVariable("month") Integer month, @PathVariable("category") Long categoryId) {
+        List<Transaction> transactions = service.listForMonthAndCategory(month, year, categoryId);
+
+        return CollectionModel.of(transactions.stream().map(transaction -> resourceAssembler.toModel(transaction)).toList());
+    }
 }

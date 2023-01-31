@@ -14,4 +14,7 @@ public interface TransactionRepository extends PagingAndSortingRepository<Transa
             "(t.categoryId = (select c.id from Category c where c.type = 'INCOME_CURRENT_MONTH') and t.date >= add_months(adddate(last_day(:date), 1), -1) and t.date <= last_day(:date)) OR " +
             "(t.categoryId = (select c.id from Category c where c.type = 'INCOME_NEXT_MONTH') and t.date >= add_months(adddate(last_day(:date), 1), -2) and t.date <= last_day(add_months(:date, -1)))")
     List<Transaction> listIncomingForBalance(LocalDate date);
+
+    @Query("select t from Transaction t where t.categoryId = :categoryId and t.date >= :start and t.date <= :end")
+    List<Transaction> listForPeriodAndCategory(LocalDate start, LocalDate end, Long categoryId);
 }
