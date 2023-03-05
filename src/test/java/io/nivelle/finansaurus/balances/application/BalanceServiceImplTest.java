@@ -128,16 +128,13 @@ public class BalanceServiceImplTest {
                 .id(1L)
                 .month(2)
                 .year(2023)
-                .categories(List.of(
-                        BalanceCategory.builder().categoryId(1L).budgeted(new BigDecimal("100")).build(),
-                        BalanceCategory.builder().categoryId(2L).budgeted(new BigDecimal("200")).build()
-                ))
                 .build();
         Balance previousBalance = Balance.builder()
                 .id(0L)
                 .month(1)
                 .year(2023)
                 .categories(List.of(
+                        BalanceCategory.builder().categoryId(1L).budgeted(new BigDecimal("200")).build(),
                         BalanceCategory.builder().categoryId(2L).budgeted(new BigDecimal("300")).build()
                 ))
                 .build();
@@ -154,7 +151,7 @@ public class BalanceServiceImplTest {
         verify(repository).save(eq(balance));
         verify(repository).findByMonthAndYear(eq(1), eq(2023));
 
-        assertThat(result.getCategories().get(0).getBudgeted(), equalTo(new BigDecimal("100")));
+        assertThat(result.getCategories().get(0).getBudgeted(), equalTo(new BigDecimal("200")));
         assertThat(result.getCategories().get(1).getBudgeted(), equalTo(new BigDecimal("300")));
     }
 
@@ -164,10 +161,6 @@ public class BalanceServiceImplTest {
                 .id(1L)
                 .month(2)
                 .year(2023)
-                .categories(List.of(
-                        BalanceCategory.builder().categoryId(1L).budgeted(new BigDecimal("100")).build(),
-                        BalanceCategory.builder().categoryId(2L).budgeted(new BigDecimal("200")).build()
-                ))
                 .build();
         when(repository.findById(eq(1L)))
                 .thenReturn(Optional.of(balance));

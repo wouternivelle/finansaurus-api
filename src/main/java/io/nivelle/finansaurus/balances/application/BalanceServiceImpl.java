@@ -1,6 +1,7 @@
 package io.nivelle.finansaurus.balances.application;
 
 import io.nivelle.finansaurus.balances.domain.Balance;
+import io.nivelle.finansaurus.balances.domain.BalanceCategory;
 import io.nivelle.finansaurus.balances.domain.BalanceNotFoundException;
 import io.nivelle.finansaurus.balances.domain.BalanceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,13 +69,16 @@ public class BalanceServiceImpl implements BalanceService {
         Optional<Balance> previousBalance = repository.findByMonthAndYear(previousMonth.getMonthValue(), previousMonth.getYear());
 
         if (previousBalance.isPresent()) {
-            currentBalance.getCategories().forEach(category -> {
-                previousBalance.get().getCategories()
-                        .stream()
-                        .filter(previousCategory -> previousCategory.getCategoryId().equals(category.getCategoryId()))
-                        .findFirst()
-                        .ifPresent(previousCategory -> category.updateBudgeted(previousCategory.getBudgeted()));
-            });
+            previousBalance.get().getCategories().forEach(previousCategory ->
+                    currentBalance.getCategories()
+                            .stream()
+                            .filter(currentCategory -> currentCategory.getCategoryId().equals(previousCategory.getCategoryId()))
+                            .findFirst()
+                            .ifPresentOrElse(currentCategory -> currentCategory.updateBudgeted(previousCategory.getBudgeted()),
+                                    () -> currentBalance.getCategories().add(BalanceCategory.builder()
+                                            .categoryId(previousCategory.getCategoryId())
+                                            .budgeted(previousCategory.getBudgeted())
+                                            .build())));
             return repository.save(currentBalance);
         } else {
             return currentBalance;
