@@ -11,10 +11,7 @@ import io.nivelle.finansaurus.categories.domain.CategoryRepository;
 import io.nivelle.finansaurus.categories.domain.CategoryType;
 import io.nivelle.finansaurus.payees.domain.Payee;
 import io.nivelle.finansaurus.payees.domain.PayeeRepository;
-import io.nivelle.finansaurus.transactions.domain.Transaction;
-import io.nivelle.finansaurus.transactions.domain.TransactionNotFoundException;
-import io.nivelle.finansaurus.transactions.domain.TransactionRepository;
-import io.nivelle.finansaurus.transactions.domain.TransactionType;
+import io.nivelle.finansaurus.transactions.domain.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -206,5 +203,10 @@ public class TransactionServiceImpl implements TransactionService {
         LocalDate end = start.with(lastDayOfMonth());
 
         return repository.listForPeriodAndCategory(start, end, categoryId);
+    }
+
+    @Override
+    public List<PeriodicalReport> reportOutgoingForPeriod(LocalDate start, LocalDate end) {
+        return repository.reportOutgoingForPeriod(start, end);
     }
 }

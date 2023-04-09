@@ -17,4 +17,7 @@ public interface TransactionRepository extends PagingAndSortingRepository<Transa
 
     @Query("select t from Transaction t where t.categoryId = :categoryId and t.date >= :start and t.date <= :end")
     List<Transaction> listForPeriodAndCategory(LocalDate start, LocalDate end, Long categoryId);
+
+    @Query("select new io.nivelle.finansaurus.transactions.domain.PeriodicalReport(sum(t.amount), c.name) from Transaction t inner join Category c on c.id = t.categoryId where t.date >= :start and t.date <= :end and t.type = 'OUT' group by t.categoryId")
+    List<PeriodicalReport> reportOutgoingForPeriod(LocalDate start, LocalDate end);
 }

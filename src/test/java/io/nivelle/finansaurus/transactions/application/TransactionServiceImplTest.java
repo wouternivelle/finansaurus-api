@@ -10,10 +10,7 @@ import io.nivelle.finansaurus.categories.domain.CategoryRepository;
 import io.nivelle.finansaurus.categories.domain.CategoryType;
 import io.nivelle.finansaurus.payees.domain.Payee;
 import io.nivelle.finansaurus.payees.domain.PayeeRepository;
-import io.nivelle.finansaurus.transactions.domain.Transaction;
-import io.nivelle.finansaurus.transactions.domain.TransactionNotFoundException;
-import io.nivelle.finansaurus.transactions.domain.TransactionRepository;
-import io.nivelle.finansaurus.transactions.domain.TransactionType;
+import io.nivelle.finansaurus.transactions.domain.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -324,6 +321,17 @@ public class TransactionServiceImplTest {
 
         assertThat(result, hasSize(1));
         verify(repository).listForPeriodAndCategory(eq(LocalDate.of(2023, 1, 1)), eq(LocalDate.of(2023, 1, 31)), eq(1L));
+    }
+
+    @Test
+    public void whenReporting_thenCorrectListReturned() {
+        when(repository.reportOutgoingForPeriod(eq(LocalDate.of(2023, 1, 1)), eq(LocalDate.of(2023, 1, 31))))
+                .thenReturn(List.of(PeriodicalReport.builder().build()));
+
+        List<PeriodicalReport> result = service.reportOutgoingForPeriod(LocalDate.of(2023, 1, 1), LocalDate.of(2023, 1, 31));
+
+        assertThat(result, hasSize(1));
+        verify(repository).reportOutgoingForPeriod(eq(LocalDate.of(2023, 1, 1)), eq(LocalDate.of(2023, 1, 31)));
     }
 
     private Transaction buildTransaction(TransactionType type) {

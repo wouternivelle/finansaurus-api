@@ -1,18 +1,21 @@
 package io.nivelle.finansaurus.transactions.adapter;
 
 import io.nivelle.finansaurus.transactions.application.TransactionService;
+import io.nivelle.finansaurus.transactions.domain.PeriodicalReport;
 import io.nivelle.finansaurus.transactions.domain.Transaction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -21,12 +24,14 @@ public class TransactionController {
     private TransactionService service;
     private PagedResourcesAssembler<Transaction> pagedResourcesAssembler;
     private TransactionResourceAssembler resourceAssembler;
+    private PeriodicalReportResourceAssembler periodicalReportResourceAssembler;
 
     @Autowired
-    TransactionController(TransactionService service, PagedResourcesAssembler<Transaction> pagedResourcesAssembler, TransactionResourceAssembler resourceAssembler) {
+    TransactionController(TransactionService service, PagedResourcesAssembler<Transaction> pagedResourcesAssembler, TransactionResourceAssembler resourceAssembler, PeriodicalReportResourceAssembler periodicalReportResourceAssembler) {
         this.service = service;
         this.pagedResourcesAssembler = pagedResourcesAssembler;
         this.resourceAssembler = resourceAssembler;
+        this.periodicalReportResourceAssembler = periodicalReportResourceAssembler;
     }
 
     @PostMapping
@@ -82,5 +87,12 @@ public class TransactionController {
         List<Transaction> transactions = service.listForMonthAndCategory(month, year, categoryId);
 
         return CollectionModel.of(transactions.stream().map(transaction -> resourceAssembler.toModel(transaction)).toList());
+    }
+
+    @GetMapping("reports/out")
+    public CollectionModel<PeriodicalReportResource> listForMonthAndCategory(@RequestParam(name = "start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start, @RequestParam(name = "end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+        List<PeriodicalReport> reports = service.reportOutgoingForPeriod(start, end);
+
+        return CollectionModel.of(reports.stream().map(report -> periodicalReportResourceAssembler.toModel(report)).toList());
     }
 }
