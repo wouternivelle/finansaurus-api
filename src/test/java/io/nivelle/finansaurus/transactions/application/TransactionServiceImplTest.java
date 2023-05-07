@@ -303,13 +303,13 @@ public class TransactionServiceImplTest {
 
     @Test
     public void whenListIncomingForBalance_thenListReturned() {
-        when(repository.listIncomingForBalance(eq(LocalDate.of(2023, 1, 1))))
+        when(repository.listIncomingForBalance(eq(LocalDate.of(2023, 1, 1)), eq(LocalDate.of(2023, 1, 31)), eq(LocalDate.of(2022, 12, 1)), eq(LocalDate.of(2022, 12, 31))))
                 .thenReturn(List.of(Transaction.builder().build()));
 
         List<Transaction> result = service.listIncomingForBalance(2023, 1);
 
         assertThat(result, hasSize(1));
-        verify(repository).listIncomingForBalance(eq(LocalDate.of(2023, 1, 1)));
+        verify(repository).listIncomingForBalance(eq(LocalDate.of(2023, 1, 1)), eq(LocalDate.of(2023, 1, 31)), eq(LocalDate.of(2022, 12, 1)), eq(LocalDate.of(2022, 12, 31)));
     }
 
     @Test

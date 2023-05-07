@@ -1,7 +1,8 @@
 package io.nivelle.finansaurus.balances.adapter;
 
-import javax.persistence.Transient;
-import javax.validation.constraints.NotNull;
+import jakarta.persistence.Transient;
+import jakarta.validation.constraints.NotNull;
+
 import java.math.BigDecimal;
 
 public class BalanceCategoryResource {

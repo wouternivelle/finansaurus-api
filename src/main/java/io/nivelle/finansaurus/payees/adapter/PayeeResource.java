@@ -1,9 +1,8 @@
 package io.nivelle.finansaurus.payees.adapter;
 
+import jakarta.validation.constraints.NotNull;
 import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.server.core.Relation;
-
-import javax.validation.constraints.NotNull;
 
 @Relation(collectionRelation = "payees")
 public class PayeeResource extends RepresentationModel<PayeeResource> {

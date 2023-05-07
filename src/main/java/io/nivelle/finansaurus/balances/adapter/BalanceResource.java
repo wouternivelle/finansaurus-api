@@ -1,10 +1,10 @@
 package io.nivelle.finansaurus.balances.adapter;
 
 
+import jakarta.validation.constraints.NotNull;
 import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.server.core.Relation;
 
-import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;

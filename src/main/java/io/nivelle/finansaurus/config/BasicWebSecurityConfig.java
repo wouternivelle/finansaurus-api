@@ -23,7 +23,7 @@ public class BasicWebSecurityConfig {
                 .cors()
                 .and()
                 .csrf().disable()
-                .authorizeRequests().anyRequest().authenticated()
+                .authorizeHttpRequests().anyRequest().authenticated()
                 .and()
                 .httpBasic();
 

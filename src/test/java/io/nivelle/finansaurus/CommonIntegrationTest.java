@@ -6,6 +6,7 @@ import io.nivelle.finansaurus.categories.domain.CategoryRepository;
 import io.nivelle.finansaurus.payees.domain.PayeeRepository;
 import io.nivelle.finansaurus.transactions.domain.Transaction;
 import io.nivelle.finansaurus.transactions.domain.TransactionRepository;
+import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -14,8 +15,6 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import javax.persistence.EntityManager;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Sql(scripts = {"classpath:truncate.sql"})

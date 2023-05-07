@@ -1,9 +1,9 @@
 package io.nivelle.finansaurus.transactions.adapter;
 
+import jakarta.validation.constraints.NotNull;
 import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.server.core.Relation;
 
-import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 @Relation(collectionRelation = "reports")

@@ -10,11 +10,11 @@ import io.nivelle.finansaurus.categories.domain.CategoryType;
 import io.nivelle.finansaurus.transactions.domain.Transaction;
 import io.nivelle.finansaurus.transactions.domain.TransactionRepository;
 import io.nivelle.finansaurus.transactions.domain.TransactionType;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 

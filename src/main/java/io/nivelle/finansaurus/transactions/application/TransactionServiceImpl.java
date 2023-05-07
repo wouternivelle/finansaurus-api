@@ -12,14 +12,15 @@ import io.nivelle.finansaurus.categories.domain.CategoryType;
 import io.nivelle.finansaurus.payees.domain.Payee;
 import io.nivelle.finansaurus.payees.domain.PayeeRepository;
 import io.nivelle.finansaurus.transactions.domain.*;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
@@ -192,9 +193,14 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     public List<Transaction> listIncomingForBalance(int year, int month) {
-        LocalDate date = LocalDate.of(year, month, 1);
+        YearMonth currentMonth = YearMonth.of(year, month);
+        YearMonth previousMonth = currentMonth.minusMonths(1);
+        LocalDate startCurrent = currentMonth.atDay(1);
+        LocalDate endCurrent = currentMonth.atEndOfMonth();
+        LocalDate startPrevious = previousMonth.atDay(1);
+        LocalDate endPrevious = previousMonth.atEndOfMonth();
 
-        return repository.listIncomingForBalance(date);
+        return repository.listIncomingForBalance(startCurrent, endCurrent, startPrevious, endPrevious);
     }
 
     @Override

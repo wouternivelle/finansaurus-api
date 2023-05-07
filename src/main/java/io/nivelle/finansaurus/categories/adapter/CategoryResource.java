@@ -1,10 +1,9 @@
 package io.nivelle.finansaurus.categories.adapter;
 
 import io.nivelle.finansaurus.categories.domain.CategoryType;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.server.core.Relation;
-
-import javax.validation.constraints.NotNull;
 
 @Relation(collectionRelation = "categories")
 public class CategoryResource extends RepresentationModel<CategoryResource> {

@@ -1,10 +1,10 @@
 package io.nivelle.finansaurus.transactions.adapter;
 
 import io.nivelle.finansaurus.transactions.domain.TransactionType;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.server.core.Relation;
 
-import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
