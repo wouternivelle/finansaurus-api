@@ -8,18 +8,18 @@ import io.nivelle.finansaurus.transactions.domain.Transaction;
 import io.nivelle.finansaurus.transactions.domain.TransactionRepository;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Sql(scripts = {"classpath:truncate.sql"})
-@TestPropertySource(properties = {
-        "SECURITY_PASSWORD=password"})
+@ActiveProfiles("test")
 public abstract class CommonIntegrationTest {
     @LocalServerPort
     protected int port;
@@ -39,16 +39,12 @@ public abstract class CommonIntegrationTest {
     protected TransactionRepository transactionRepository;
     @Autowired
     protected BalanceRepository balanceRepository;
-    @Value("${SECURITY_PASSWORD}")
-    private String password;
+    @MockBean
+    private JwtDecoder jwtDecoder;
 
     protected Transaction saveTransaction(Transaction transaction) {
-        return getRestTemplate().postForEntity("http://localhost:" + port + "/transactions", transaction, Transaction.class)
+        return restTemplate.postForEntity("http://localhost:" + port + "/transactions", transaction, Transaction.class)
                 .getBody();
-    }
-
-    protected TestRestTemplate getRestTemplate() {
-        return restTemplate.withBasicAuth("user", password);
     }
 
     protected void runInTransaction(Runnable runnable) {
