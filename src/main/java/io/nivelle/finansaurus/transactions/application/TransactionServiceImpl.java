@@ -13,6 +13,8 @@ import io.nivelle.finansaurus.payees.domain.Payee;
 import io.nivelle.finansaurus.payees.domain.PayeeRepository;
 import io.nivelle.finansaurus.transactions.domain.*;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +35,8 @@ public class TransactionServiceImpl implements TransactionService {
     private CategoryRepository categoryRepository;
     private BalanceRepository balanceRepository;
     private PayeeRepository payeeRepository;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TransactionServiceImpl.class);
 
     @Autowired
     TransactionServiceImpl(TransactionRepository repository, AccountRepository accountRepository, CategoryRepository categoryRepository, BalanceRepository balanceRepository, PayeeRepository payeeRepository) {
@@ -70,6 +74,8 @@ public class TransactionServiceImpl implements TransactionService {
         findOrCreatePayee(transaction);
 
         repository.save(transaction);
+
+        LOGGER.info("Added {}", transaction);
     }
 
     private void findOrCreatePayee(Transaction transaction) {
@@ -111,8 +117,12 @@ public class TransactionServiceImpl implements TransactionService {
 
         if (transaction.getType().equals(TransactionType.IN)) {
             account.updateAmount(account.getAmount().add(transaction.getAmount()));
+
+            LOGGER.info("Added {} to account '{}' resulting in total of {}", transaction.getAmount(), account.getName(), account.getAmount());
         } else {
             account.updateAmount(account.getAmount().subtract(transaction.getAmount()));
+
+            LOGGER.info("Subtracted {} from account '{}' resulting in total of {}", transaction.getAmount(), account.getName(), account.getAmount());
         }
         accountRepository.save(account);
     }
@@ -122,6 +132,8 @@ public class TransactionServiceImpl implements TransactionService {
         deleteFromBalance(transaction);
 
         repository.deleteById(transaction.getId());
+
+        LOGGER.info("Deleted {}", transaction);
     }
 
     private void deleteFromAccount(Transaction transaction) {
@@ -129,8 +141,12 @@ public class TransactionServiceImpl implements TransactionService {
 
         if (transaction.getType().equals(TransactionType.IN)) {
             account.updateAmount(account.getAmount().subtract(transaction.getAmount()));
+
+            LOGGER.info("Subtracted {} from account '{}' resulting in total of {}", transaction.getAmount(), account.getName(), account.getAmount());
         } else {
             account.updateAmount(account.getAmount().add(transaction.getAmount()));
+
+            LOGGER.info("Added {} to account '{}' resulting in total of {}", transaction.getAmount(), account.getName(), account.getAmount());
         }
         accountRepository.save(account);
     }

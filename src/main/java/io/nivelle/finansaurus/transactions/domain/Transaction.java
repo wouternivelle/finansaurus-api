@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.StringJoiner;
 
 @Entity
 public class Transaction {
@@ -161,6 +162,21 @@ public class Transaction {
         public Transaction build() {
             return new Transaction(this);
         }
+    }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", Transaction.class.getSimpleName() + "[", "]")
+                .add("id=" + id)
+                .add("amount=" + amount)
+                .add("accountId=" + accountId)
+                .add("categoryId=" + categoryId)
+                .add("payeeId=" + payeeId)
+                .add("payeeName='" + payeeName + "'")
+                .add("date=" + date)
+                .add("note='" + note + "'")
+                .add("type=" + type)
+                .toString();
     }
 }
 
