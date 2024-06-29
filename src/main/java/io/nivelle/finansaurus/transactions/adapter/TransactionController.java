@@ -21,10 +21,10 @@ import java.util.List;
 @RestController
 @RequestMapping(value = "/transactions")
 public class TransactionController {
-    private TransactionService service;
-    private PagedResourcesAssembler<Transaction> pagedResourcesAssembler;
-    private TransactionResourceAssembler resourceAssembler;
-    private PeriodicalReportResourceAssembler periodicalReportResourceAssembler;
+    private final TransactionService service;
+    private final PagedResourcesAssembler<Transaction> pagedResourcesAssembler;
+    private final TransactionResourceAssembler resourceAssembler;
+    private final PeriodicalReportResourceAssembler periodicalReportResourceAssembler;
 
     @Autowired
     TransactionController(TransactionService service, PagedResourcesAssembler<Transaction> pagedResourcesAssembler, TransactionResourceAssembler resourceAssembler, PeriodicalReportResourceAssembler periodicalReportResourceAssembler) {

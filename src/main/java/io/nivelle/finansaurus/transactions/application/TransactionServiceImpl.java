@@ -1,17 +1,14 @@
 package io.nivelle.finansaurus.transactions.application;
 
-import io.nivelle.finansaurus.accounts.domain.Account;
-import io.nivelle.finansaurus.accounts.domain.AccountNotFoundException;
-import io.nivelle.finansaurus.accounts.domain.AccountRepository;
-import io.nivelle.finansaurus.balances.domain.Balance;
-import io.nivelle.finansaurus.balances.domain.BalanceCategory;
-import io.nivelle.finansaurus.balances.domain.BalanceRepository;
-import io.nivelle.finansaurus.categories.domain.Category;
-import io.nivelle.finansaurus.categories.domain.CategoryRepository;
-import io.nivelle.finansaurus.categories.domain.CategoryType;
+import io.nivelle.finansaurus.common.domain.DomainEventPublisher;
 import io.nivelle.finansaurus.payees.domain.Payee;
 import io.nivelle.finansaurus.payees.domain.PayeeRepository;
-import io.nivelle.finansaurus.transactions.domain.*;
+import io.nivelle.finansaurus.transactions.domain.PeriodicalReport;
+import io.nivelle.finansaurus.transactions.domain.Transaction;
+import io.nivelle.finansaurus.transactions.domain.TransactionNotFoundException;
+import io.nivelle.finansaurus.transactions.domain.TransactionRepository;
+import io.nivelle.finansaurus.transactions.domain.event.TransactionAddedEvent;
+import io.nivelle.finansaurus.transactions.domain.event.TransactionDeletedEvent;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +17,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -30,21 +26,16 @@ import static java.time.temporal.TemporalAdjusters.lastDayOfMonth;
 
 @Service
 public class TransactionServiceImpl implements TransactionService {
-    private TransactionRepository repository;
-    private AccountRepository accountRepository;
-    private CategoryRepository categoryRepository;
-    private BalanceRepository balanceRepository;
-    private PayeeRepository payeeRepository;
-
     private static final Logger LOGGER = LoggerFactory.getLogger(TransactionServiceImpl.class);
+    private final TransactionRepository transactionRepository;
+    private final PayeeRepository payeeRepository;
+    private final DomainEventPublisher publisher;
 
     @Autowired
-    TransactionServiceImpl(TransactionRepository repository, AccountRepository accountRepository, CategoryRepository categoryRepository, BalanceRepository balanceRepository, PayeeRepository payeeRepository) {
-        this.repository = repository;
-        this.accountRepository = accountRepository;
-        this.categoryRepository = categoryRepository;
-        this.balanceRepository = balanceRepository;
+    TransactionServiceImpl(TransactionRepository transactionRepository, PayeeRepository payeeRepository, DomainEventPublisher publisher) {
+        this.transactionRepository = transactionRepository;
         this.payeeRepository = payeeRepository;
+        this.publisher = publisher;
     }
 
     @Override
@@ -69,16 +60,6 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     private void addTransaction(Transaction transaction) {
-        addToAccount(transaction);
-        addToBalance(transaction);
-        findOrCreatePayee(transaction);
-
-        repository.save(transaction);
-
-        LOGGER.info("Added {}", transaction);
-    }
-
-    private void findOrCreatePayee(Transaction transaction) {
         Optional<Payee> foundPayee = payeeRepository.findPayeeByName(transaction.getPayeeName());
         foundPayee.ifPresentOrElse(payee -> transaction.updatePayee(payee.getId()), () -> {
             Payee payee = payeeRepository.save(Payee.builder()
@@ -87,107 +68,20 @@ public class TransactionServiceImpl implements TransactionService {
                     .build());
             transaction.updatePayee(payee.getId());
         });
-    }
 
-    private void addToBalance(Transaction transaction) {
-        Category incomeNextMonth = categoryRepository.findCategoryByType(CategoryType.INCOME_NEXT_MONTH);
-        boolean isIncomeNextMonth = transaction.getCategoryId().equals(incomeNextMonth.getId());
-        Balance balance = findOrCreateBalance(transaction, isIncomeNextMonth);
+        transactionRepository.save(transaction);
 
-        if (isIncoming(transaction)) {
-            balance.updateIncoming(balance.getIncoming().add(transaction.getAmount()));
-        } else {
-            BigDecimal amount;
-            if (TransactionType.IN.equals(transaction.getType())) {
-                amount = transaction.getAmount().negate();
-            } else {
-                amount = transaction.getAmount();
-            }
-            updateCategoryOutflow(balance, amount, transaction.getCategoryId());
-        }
-        balanceRepository.save(balance);
-    }
+        publisher.publish(new TransactionAddedEvent(transaction));
 
-    private boolean isIncoming(Transaction transaction) {
-        return categoryRepository.isIncomingCategory(transaction.getCategoryId());
-    }
-
-    private void addToAccount(Transaction transaction) {
-        Account account = accountRepository.findById(transaction.getAccountId()).orElseThrow(() -> new AccountNotFoundException(transaction.getAccountId()));
-
-        if (transaction.getType().equals(TransactionType.IN)) {
-            account.updateAmount(account.getAmount().add(transaction.getAmount()));
-
-            LOGGER.info("Added {} to account '{}' resulting in total of {}", transaction.getAmount(), account.getName(), account.getAmount());
-        } else {
-            account.updateAmount(account.getAmount().subtract(transaction.getAmount()));
-
-            LOGGER.info("Subtracted {} from account '{}' resulting in total of {}", transaction.getAmount(), account.getName(), account.getAmount());
-        }
-        accountRepository.save(account);
+        LOGGER.info("Added {}", transaction);
     }
 
     private void deleteTransaction(Transaction transaction) {
-        deleteFromAccount(transaction);
-        deleteFromBalance(transaction);
+        transactionRepository.deleteById(transaction.getId());
 
-        repository.deleteById(transaction.getId());
+        publisher.publish(new TransactionDeletedEvent(transaction));
 
         LOGGER.info("Deleted {}", transaction);
-    }
-
-    private void deleteFromAccount(Transaction transaction) {
-        Account account = accountRepository.findById(transaction.getAccountId()).orElseThrow(() -> new AccountNotFoundException(transaction.getAccountId()));
-
-        if (transaction.getType().equals(TransactionType.IN)) {
-            account.updateAmount(account.getAmount().subtract(transaction.getAmount()));
-
-            LOGGER.info("Subtracted {} from account '{}' resulting in total of {}", transaction.getAmount(), account.getName(), account.getAmount());
-        } else {
-            account.updateAmount(account.getAmount().add(transaction.getAmount()));
-
-            LOGGER.info("Added {} to account '{}' resulting in total of {}", transaction.getAmount(), account.getName(), account.getAmount());
-        }
-        accountRepository.save(account);
-    }
-
-    private void deleteFromBalance(Transaction transaction) {
-        Category incomeNextMonth = categoryRepository.findCategoryByType(CategoryType.INCOME_NEXT_MONTH);
-        boolean isIncomeNextMonth = transaction.getCategoryId().equals(incomeNextMonth.getId());
-        Balance balance = findOrCreateBalance(transaction, isIncomeNextMonth);
-        if (isIncoming(transaction)) {
-            balance.updateIncoming(balance.getIncoming().subtract(transaction.getAmount()));
-        } else {
-            BigDecimal amount;
-            if (TransactionType.IN.equals(transaction.getType())) {
-                amount = transaction.getAmount();
-            } else {
-                amount = transaction.getAmount().negate();
-            }
-            updateCategoryOutflow(balance, amount, transaction.getCategoryId());
-        }
-        balanceRepository.save(balance);
-    }
-
-    private Balance findOrCreateBalance(Transaction transaction, boolean isIncomeNextMonth) {
-        LocalDate date = transaction.getDate();
-        if (isIncomeNextMonth) {
-            date = date.plusMonths(1);
-        }
-
-        int month = date.getMonthValue();
-        int year = date.getYear();
-
-        return balanceRepository.findByMonthAndYear(month, year)
-                .orElseGet(() -> balanceRepository.save(Balance.builder().month(month).year(year).build()));
-    }
-
-    private void updateCategoryOutflow(Balance balance, BigDecimal amount, Long categoryId) {
-        Optional<BalanceCategory> balanceCategory = balance.getCategories().stream()
-                .filter(category -> category.getCategoryId().equals(categoryId))
-                .findAny();
-        balanceCategory.ifPresentOrElse(category -> category.updateOperations(category.getOperations().add(amount)),
-                () -> balance.getCategories().add(BalanceCategory.builder().categoryId(categoryId).operations(amount).build()));
     }
 
     @Override
@@ -199,12 +93,12 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     public Page<Transaction> list(Pageable pageable) {
-        return repository.findAll(pageable);
+        return transactionRepository.findAll(pageable);
     }
 
     @Override
     public Transaction fetch(long id) {
-        return repository.findById(id).orElseThrow(() -> new TransactionNotFoundException(id));
+        return transactionRepository.findById(id).orElseThrow(() -> new TransactionNotFoundException(id));
     }
 
     @Override
@@ -216,7 +110,7 @@ public class TransactionServiceImpl implements TransactionService {
         LocalDate startPrevious = previousMonth.atDay(1);
         LocalDate endPrevious = previousMonth.atEndOfMonth();
 
-        return repository.listIncomingForBalance(startCurrent, endCurrent, startPrevious, endPrevious);
+        return transactionRepository.listIncomingForBalance(startCurrent, endCurrent, startPrevious, endPrevious);
     }
 
     @Override
@@ -224,11 +118,11 @@ public class TransactionServiceImpl implements TransactionService {
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.with(lastDayOfMonth());
 
-        return repository.listForPeriodAndCategory(start, end, categoryId);
+        return transactionRepository.listForPeriodAndCategory(start, end, categoryId);
     }
 
     @Override
     public List<PeriodicalReport> reportOutgoingForPeriod(LocalDate start, LocalDate end) {
-        return repository.reportOutgoingForPeriod(start, end);
+        return transactionRepository.reportOutgoingForPeriod(start, end);
     }
 }

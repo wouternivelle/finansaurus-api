@@ -8,6 +8,7 @@ import io.nivelle.finansaurus.balances.domain.BalanceRepository;
 import io.nivelle.finansaurus.categories.domain.Category;
 import io.nivelle.finansaurus.categories.domain.CategoryRepository;
 import io.nivelle.finansaurus.categories.domain.CategoryType;
+import io.nivelle.finansaurus.common.domain.DomainEventPublisher;
 import io.nivelle.finansaurus.transactions.domain.Transaction;
 import io.nivelle.finansaurus.transactions.domain.TransactionRepository;
 import io.nivelle.finansaurus.transactions.domain.TransactionType;
@@ -46,10 +47,12 @@ public class AccountServiceImplTest {
 
     @Mock
     private BalanceRepository balanceRepository;
+    @Mock
+    private DomainEventPublisher publisher;
 
     @BeforeEach
     public void setup() {
-        service = new AccountServiceImpl(repository, transactionRepository, categoryRepository, balanceRepository);
+        service = new AccountServiceImpl(repository, transactionRepository, categoryRepository, balanceRepository, publisher);
     }
 
     @Test

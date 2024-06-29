@@ -1,6 +1,6 @@
 package io.nivelle.finansaurus.transactions.domain;
 
-import io.nivelle.finansaurus.common.NotFoundException;
+import io.nivelle.finansaurus.common.exception.NotFoundException;
 
 public class TransactionNotFoundException extends NotFoundException {
 

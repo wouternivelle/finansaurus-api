@@ -3,10 +3,12 @@ package io.nivelle.finansaurus.accounts.application;
 import io.nivelle.finansaurus.accounts.domain.Account;
 import io.nivelle.finansaurus.accounts.domain.AccountNotFoundException;
 import io.nivelle.finansaurus.accounts.domain.AccountRepository;
+import io.nivelle.finansaurus.accounts.domain.event.AccountSavedEvent;
 import io.nivelle.finansaurus.balances.domain.Balance;
 import io.nivelle.finansaurus.balances.domain.BalanceRepository;
 import io.nivelle.finansaurus.categories.domain.CategoryRepository;
 import io.nivelle.finansaurus.categories.domain.CategoryType;
+import io.nivelle.finansaurus.common.domain.DomainEventPublisher;
 import io.nivelle.finansaurus.transactions.domain.Transaction;
 import io.nivelle.finansaurus.transactions.domain.TransactionRepository;
 import io.nivelle.finansaurus.transactions.domain.TransactionType;
@@ -24,13 +26,15 @@ public class AccountServiceImpl implements AccountService {
     private TransactionRepository transactionRepository;
     private CategoryRepository categoryRepository;
     private BalanceRepository balanceRepository;
+    private DomainEventPublisher publisher;
 
     @Autowired
-    public AccountServiceImpl(AccountRepository repository, TransactionRepository transactionRepository, CategoryRepository categoryRepository, BalanceRepository balanceRepository) {
+    public AccountServiceImpl(AccountRepository repository, TransactionRepository transactionRepository, CategoryRepository categoryRepository, BalanceRepository balanceRepository, DomainEventPublisher publisher) {
         this.repository = repository;
         this.transactionRepository = transactionRepository;
         this.categoryRepository = categoryRepository;
         this.balanceRepository = balanceRepository;
+        this.publisher = publisher;
     }
 
     @Override
@@ -39,6 +43,8 @@ public class AccountServiceImpl implements AccountService {
         boolean isNew = account.getId() == null;
 
         account = repository.save(account);
+
+        publisher.publish(new AccountSavedEvent(account, isNew));
 
         if (isNew) {
             Transaction transaction = Transaction.builder().accountId(account.getId()).type(TransactionType.IN).amount(account.getAmount()).categoryId(categoryRepository.findCategoryByType(CategoryType.INITIAL).getId()).date(LocalDate.now()).build();

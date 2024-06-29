@@ -1,7 +1,7 @@
 package io.nivelle.finansaurus.config;
 
 import io.nivelle.finansaurus.balances.domain.InvalidBalanceException;
-import io.nivelle.finansaurus.common.NotFoundException;
+import io.nivelle.finansaurus.common.exception.NotFoundException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;

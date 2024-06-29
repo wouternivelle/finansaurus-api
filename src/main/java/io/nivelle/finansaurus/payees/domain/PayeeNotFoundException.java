@@ -1,6 +1,6 @@
 package io.nivelle.finansaurus.payees.domain;
 
-import io.nivelle.finansaurus.common.NotFoundException;
+import io.nivelle.finansaurus.common.exception.NotFoundException;
 
 public class PayeeNotFoundException extends NotFoundException {
 

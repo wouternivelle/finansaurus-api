@@ -1,4 +1,4 @@
-package io.nivelle.finansaurus.common;
+package io.nivelle.finansaurus.common.exception;
 
 public class NotFoundException extends RuntimeException {
     private Long id;

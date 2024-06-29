@@ -47,6 +47,10 @@ public abstract class CommonIntegrationTest {
                 .getBody();
     }
 
+    protected void deleteTransaction(Long id) {
+        restTemplate.delete("http://localhost:" + port + "/transactions/" + id);
+    }
+
     protected void runInTransaction(Runnable runnable) {
         transactionTemplate.execute(status -> {
             entityManager.flush();

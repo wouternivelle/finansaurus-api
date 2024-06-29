@@ -1,16 +1,13 @@
 package io.nivelle.finansaurus.transactions.application;
 
-import io.nivelle.finansaurus.accounts.domain.Account;
-import io.nivelle.finansaurus.accounts.domain.AccountNotFoundException;
-import io.nivelle.finansaurus.accounts.domain.AccountRepository;
-import io.nivelle.finansaurus.balances.domain.Balance;
-import io.nivelle.finansaurus.balances.domain.BalanceRepository;
-import io.nivelle.finansaurus.categories.domain.Category;
-import io.nivelle.finansaurus.categories.domain.CategoryRepository;
-import io.nivelle.finansaurus.categories.domain.CategoryType;
+import io.nivelle.finansaurus.common.domain.DomainEvent;
+import io.nivelle.finansaurus.common.domain.DomainEventPublisher;
 import io.nivelle.finansaurus.payees.domain.Payee;
 import io.nivelle.finansaurus.payees.domain.PayeeRepository;
 import io.nivelle.finansaurus.transactions.domain.*;
+import io.nivelle.finansaurus.transactions.domain.event.TransactionAddedEvent;
+import io.nivelle.finansaurus.transactions.domain.event.TransactionDeletedEvent;
+import org.hamcrest.core.IsInstanceOf;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,14 +18,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import static io.nivelle.finansaurus.transactions.application.TransactionTestData.buildExistingTransaction;
+import static io.nivelle.finansaurus.transactions.application.TransactionTestData.buildTransaction;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.core.IsEqual.equalTo;
+import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -41,117 +40,30 @@ public class TransactionServiceImplTest {
     @Mock
     private TransactionRepository repository;
     @Mock
-    private BalanceRepository balanceRepository;
-    @Mock
-    private AccountRepository accountRepository;
-    @Mock
-    private CategoryRepository categoryRepository;
-    @Mock
     private PayeeRepository payeeRepository;
+    @Mock
+    private DomainEventPublisher publisher;
 
     @BeforeEach
     public void setup() {
-        service = new TransactionServiceImpl(repository, accountRepository, categoryRepository, balanceRepository, payeeRepository);
+        service = new TransactionServiceImpl(repository, payeeRepository, publisher);
     }
 
     @Test
-    public void whenSavingNewTransaction_withInvalidAccount_thenExceptionThrown() {
+    public void whenSavingNewOutTransactionWithNewPayee_thenTransactionSavedAndPayeeCreated() {
         Transaction transaction = buildTransaction(TransactionType.OUT);
-        when(accountRepository.findById(eq(1L)))
-                .thenThrow(new AccountNotFoundException(1L));
-
-        assertThrows(AccountNotFoundException.class, () -> service.save(transaction));
-    }
-
-    @Test
-    public void whenSavingNewOutTransactionWithNewPayee_thenAccountSubtractedAndExistingBalanceCategoryUpdated() {
-        Transaction transaction = buildTransaction(TransactionType.OUT);
-        Account account = Account.builder().build();
-        when(accountRepository.findById(eq(1L)))
-                .thenReturn(Optional.of(account));
-        Category category = Category.builder().build();
-        when(categoryRepository.findCategoryByType(eq(CategoryType.INCOME_NEXT_MONTH)))
-                .thenReturn(category);
-        when(categoryRepository.isIncomingCategory(eq(1L)))
-                .thenReturn(false);
-        Balance balance = Balance.builder().month(transaction.getDate().getMonthValue()).year(transaction.getDate().getYear()).build();
-        when(balanceRepository.findByMonthAndYear(eq(transaction.getDate().getMonthValue()), eq(transaction.getDate().getYear())))
-                .thenReturn(Optional.of(balance));
         when(payeeRepository.save(any(Payee.class)))
                 .thenReturn(Payee.builder().id(1L).build());
 
         service.save(transaction);
 
-        verify(accountRepository).save(eq(account));
-        assertThat(account.getAmount(), equalTo(new BigDecimal("-500.0")));
-        verify(balanceRepository).save(eq(balance));
-        assertThat(balance.getCategories().get(0).getOperations(), equalTo(new BigDecimal("500.0")));
-        assertThat(balance.getCategories().get(0).getCategoryId(), equalTo(1L));
         ArgumentCaptor<Payee> payeeCaptor = ArgumentCaptor.forClass(Payee.class);
         verify(payeeRepository).save(payeeCaptor.capture());
         Payee payee = payeeCaptor.getValue();
         assertThat(payee.getName(), equalTo(transaction.getPayeeName()));
         assertThat(payee.getLastCategoryId(), equalTo(transaction.getCategoryId()));
         verify(repository).save(eq(transaction));
-    }
-
-    @Test
-    public void whenSavingNewInTransaction_thenAccountAddedAndExistingBalanceCategoryUpdated() {
-        Transaction transaction = buildTransaction(TransactionType.IN);
-        Account account = Account.builder().build();
-        when(accountRepository.findById(eq(1L)))
-                .thenReturn(Optional.of(account));
-        Category category = Category.builder().build();
-        when(categoryRepository.findCategoryByType(eq(CategoryType.INCOME_NEXT_MONTH)))
-                .thenReturn(category);
-        when(categoryRepository.isIncomingCategory(eq(1L)))
-                .thenReturn(false);
-        Balance balance = Balance.builder().month(transaction.getDate().getMonthValue()).year(transaction.getDate().getYear()).build();
-        when(balanceRepository.findByMonthAndYear(eq(transaction.getDate().getMonthValue()), eq(transaction.getDate().getYear())))
-                .thenReturn(Optional.of(balance));
-        when(payeeRepository.save(any(Payee.class)))
-                .thenReturn(Payee.builder().id(1L).build());
-
-        service.save(transaction);
-
-        verify(accountRepository).save(eq(account));
-        assertThat(account.getAmount(), equalTo(new BigDecimal("500.0")));
-        verify(balanceRepository).save(eq(balance));
-        assertThat(balance.getCategories().get(0).getOperations(), equalTo(new BigDecimal("-500.0")));
-        assertThat(balance.getCategories().get(0).getCategoryId(), equalTo(1L));
-        verify(repository).save(eq(transaction));
-    }
-
-    @Test
-    public void whenSavingNewIncomingTransactionWithExistingPayee_thenAccountAddedAndNewBalanceIncomingUpdated() {
-        Transaction transaction = buildTransaction(TransactionType.IN);
-        Account account = Account.builder().build();
-        when(accountRepository.findById(eq(1L)))
-                .thenReturn(Optional.of(account));
-        Category category = Category.builder().id(1L).build();
-        when(categoryRepository.findCategoryByType(eq(CategoryType.INCOME_NEXT_MONTH)))
-                .thenReturn(category);
-        when(categoryRepository.isIncomingCategory(eq(1L)))
-                .thenReturn(true);
-        when(balanceRepository.findByMonthAndYear(transaction.getDate().plusMonths(1).getMonthValue(), transaction.getDate().plusMonths(1).getYear()))
-                .thenReturn(Optional.empty());
-        Balance balance = Balance.builder().month(transaction.getDate().plusMonths(1).getMonthValue()).year(transaction.getDate().plusMonths(1).getYear()).build();
-        when(balanceRepository.save(any(Balance.class)))
-                .thenReturn(balance);
-        when(payeeRepository.findPayeeByName("payee 1"))
-                .thenReturn(Optional.of(Payee.builder().id(1L).build()));
-
-        service.save(transaction);
-
-        verify(accountRepository).save(eq(account));
-        assertThat(account.getAmount(), equalTo(new BigDecimal("500.0")));
-        verify(balanceRepository).save(eq(balance));
-        assertThat(balance.getMonth(), equalTo(transaction.getDate().plusMonths(1).getMonthValue()));
-        assertThat(balance.getYear(), equalTo(transaction.getDate().plusMonths(1).getYear()));
-        assertThat(balance.getIncoming(), equalTo(new BigDecimal("500.0")));
-        verify(repository).save(eq(transaction));
-        assertThat(transaction.getPayeeId(), equalTo(1L));
-        verify(payeeRepository, times(0)).save(any(Payee.class));
+        verify(publisher).publish(eq(new TransactionAddedEvent(transaction)));
     }
 
     @Test
@@ -159,27 +71,11 @@ public class TransactionServiceImplTest {
         Transaction transaction = buildExistingTransaction(TransactionType.OUT);
         when(repository.findById(eq(1L)))
                 .thenReturn(Optional.of(transaction));
-        Account account = Account.builder().build();
-        when(accountRepository.findById(eq(1L)))
-                .thenReturn(Optional.of(account));
-        Category category = Category.builder().build();
-        when(categoryRepository.findCategoryByType(eq(CategoryType.INCOME_NEXT_MONTH)))
-                .thenReturn(category);
-        when(categoryRepository.isIncomingCategory(eq(1L)))
-                .thenReturn(false);
-        Balance balance = Balance.builder().month(transaction.getDate().getMonthValue()).year(transaction.getDate().getYear()).build();
-        when(balanceRepository.findByMonthAndYear(eq(transaction.getDate().getMonthValue()), eq(transaction.getDate().getYear())))
-                .thenReturn(Optional.of(balance));
         when(payeeRepository.save(any(Payee.class)))
                 .thenReturn(Payee.builder().id(1L).build());
 
         service.save(transaction);
 
-        verify(accountRepository, times(2)).save(eq(account));
-        assertThat(account.getAmount(), equalTo(new BigDecimal("0.0")));
-        verify(balanceRepository, times(2)).save(eq(balance));
-        assertThat(balance.getCategories().get(0).getOperations(), equalTo(new BigDecimal("0.0")));
-        assertThat(balance.getCategories().get(0).getCategoryId(), equalTo(1L));
         ArgumentCaptor<Payee> payeeCaptor = ArgumentCaptor.forClass(Payee.class);
         verify(payeeRepository).save(payeeCaptor.capture());
         Payee payee = payeeCaptor.getValue();
@@ -187,6 +83,23 @@ public class TransactionServiceImplTest {
         assertThat(payee.getLastCategoryId(), equalTo(transaction.getCategoryId()));
         verify(repository).deleteById(eq(1L));
         verify(repository).save(any(Transaction.class));
+        var captor = ArgumentCaptor.forClass(DomainEvent.class);
+        verify(publisher, times(2)).publish(captor.capture());
+        assertThat(captor.getAllValues().getFirst(), equalTo(new TransactionDeletedEvent(transaction)));
+        assertThat(captor.getAllValues().get(1), instanceOf(TransactionAddedEvent.class));
+    }
+
+    @Test
+    public void whenSavingNewIncomingTransactionWithExistingPayee_thenTransactionAndPayeeSaved() {
+        Transaction transaction = buildTransaction(TransactionType.IN);
+        when(payeeRepository.findPayeeByName("payee 1"))
+                .thenReturn(Optional.of(Payee.builder().id(1L).build()));
+
+        service.save(transaction);
+
+        verify(repository).save(eq(transaction));
+        assertThat(transaction.getPayeeId(), equalTo(1L));
+        verify(payeeRepository, times(0)).save(any(Payee.class));
     }
 
     @Test
@@ -194,79 +107,11 @@ public class TransactionServiceImplTest {
         Transaction transaction = buildExistingTransaction(TransactionType.OUT);
         when(repository.findById(eq(1L)))
                 .thenReturn(Optional.of(transaction));
-        Account account = Account.builder().build();
-        when(accountRepository.findById(eq(1L)))
-                .thenReturn(Optional.of(account));
-        Category category = Category.builder().build();
-        when(categoryRepository.findCategoryByType(eq(CategoryType.INCOME_NEXT_MONTH)))
-                .thenReturn(category);
-        Balance balance = Balance.builder().month(transaction.getDate().getMonthValue()).year(transaction.getDate().getYear()).build();
-        when(balanceRepository.findByMonthAndYear(eq(transaction.getDate().getMonthValue()), eq(transaction.getDate().getYear())))
-                .thenReturn(Optional.of(balance));
 
         service.delete(1L);
 
-        verify(accountRepository).save(eq(account));
-        assertThat(account.getAmount(), equalTo(new BigDecimal("500.0")));
-        verify(balanceRepository).save(eq(balance));
-        assertThat(balance.getCategories().get(0).getOperations(), equalTo(new BigDecimal("-500.0")));
-        assertThat(balance.getCategories().get(0).getCategoryId(), equalTo(1L));
         verify(repository).deleteById(eq(1L));
-    }
-
-    @Test
-    public void whenDeletingInTransaction_thenAccountSubtractedAndNewBalanceCategoryUpdated() {
-        Transaction transaction = buildExistingTransaction(TransactionType.IN);
-        when(repository.findById(eq(1L)))
-                .thenReturn(Optional.of(transaction));
-        Account account = Account.builder().build();
-        when(accountRepository.findById(eq(1L)))
-                .thenReturn(Optional.of(account));
-        Category category = Category.builder().build();
-        when(categoryRepository.findCategoryByType(eq(CategoryType.INCOME_NEXT_MONTH)))
-                .thenReturn(category);
-        Balance balance = Balance.builder().month(transaction.getDate().getMonthValue()).year(transaction.getDate().getYear()).build();
-        when(balanceRepository.findByMonthAndYear(eq(transaction.getDate().getMonthValue()), eq(transaction.getDate().getYear())))
-                .thenReturn(Optional.of(balance));
-
-        service.delete(1L);
-
-        verify(accountRepository).save(eq(account));
-        assertThat(account.getAmount(), equalTo(new BigDecimal("-500.0")));
-        verify(balanceRepository).save(eq(balance));
-        assertThat(balance.getCategories().get(0).getOperations(), equalTo(new BigDecimal("500.0")));
-        assertThat(balance.getCategories().get(0).getCategoryId(), equalTo(1L));
-        verify(repository).deleteById(eq(1L));
-    }
-
-    @Test
-    public void whenDeletingIncomingTransaction_thenAccountSubtractedAndNewBalanceIncomingUpdated() {
-        Transaction transaction = buildExistingTransaction(TransactionType.IN);
-        when(repository.findById(eq(1L)))
-                .thenReturn(Optional.of(transaction));
-        Account account = Account.builder().build();
-        when(accountRepository.findById(eq(1L)))
-                .thenReturn(Optional.of(account));
-        Category category = Category.builder().id(1L).build();
-        when(categoryRepository.findCategoryByType(eq(CategoryType.INCOME_NEXT_MONTH)))
-                .thenReturn(category);
-        when(categoryRepository.isIncomingCategory(eq(1L)))
-                .thenReturn(true);
-        when(balanceRepository.findByMonthAndYear(transaction.getDate().plusMonths(1).getMonthValue(), transaction.getDate().plusMonths(1).getYear()))
-                .thenReturn(Optional.empty());
-        Balance balance = Balance.builder().month(transaction.getDate().plusMonths(1).getMonthValue()).year(transaction.getDate().plusMonths(1).getYear()).build();
-        when(balanceRepository.save(any(Balance.class)))
-                .thenReturn(balance);
-
-        service.delete(1L);
-
-        verify(accountRepository).save(eq(account));
-        assertThat(account.getAmount(), equalTo(new BigDecimal("-500.0")));
-        verify(balanceRepository).save(eq(balance));
-        assertThat(balance.getMonth(), equalTo(transaction.getDate().plusMonths(1).getMonthValue()));
-        assertThat(balance.getYear(), equalTo(transaction.getDate().plusMonths(1).getYear()));
-        assertThat(balance.getIncoming(), equalTo(new BigDecimal("-500.0")));
-        verify(repository).deleteById(eq(1L));
+        verify(publisher).publish(eq(new TransactionDeletedEvent(transaction)));
     }
 
     @Test
@@ -332,30 +177,5 @@ public class TransactionServiceImplTest {
 
         assertThat(result, hasSize(1));
         verify(repository).reportOutgoingForPeriod(eq(LocalDate.of(2023, 1, 1)), eq(LocalDate.of(2023, 1, 31)));
-    }
-
-    private Transaction buildTransaction(TransactionType type) {
-        return Transaction.builder()
-                .date(LocalDate.now())
-                .payeeName("payee 1")
-                .type(type)
-                .categoryId(1L)
-                .accountId(1L)
-                .amount(new BigDecimal("500.0"))
-                .note("a note")
-                .build();
-    }
-
-    private Transaction buildExistingTransaction(TransactionType type) {
-        return Transaction.builder()
-                .id(1L)
-                .date(LocalDate.now())
-                .payeeName("payee 1")
-                .type(type)
-                .categoryId(1L)
-                .accountId(1L)
-                .amount(new BigDecimal("500.0"))
-                .note("a note")
-                .build();
     }
 }
