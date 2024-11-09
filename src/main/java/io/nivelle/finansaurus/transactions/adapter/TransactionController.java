@@ -79,20 +79,20 @@ public class TransactionController {
     public CollectionModel<TransactionResource> list(@PathVariable("year") Integer year, @PathVariable("month") Integer month) {
         List<Transaction> transactions = service.listIncomingForBalance(year, month);
 
-        return CollectionModel.of(transactions.stream().map(transaction -> resourceAssembler.toModel(transaction)).toList());
+        return CollectionModel.of(transactions.stream().map(resourceAssembler::toModel).toList());
     }
 
     @GetMapping("list/{year}/{month}/{category}")
     public CollectionModel<TransactionResource> listForMonthAndCategory(@PathVariable("year") Integer year, @PathVariable("month") Integer month, @PathVariable("category") Long categoryId) {
         List<Transaction> transactions = service.listForMonthAndCategory(month, year, categoryId);
 
-        return CollectionModel.of(transactions.stream().map(transaction -> resourceAssembler.toModel(transaction)).toList());
+        return CollectionModel.of(transactions.stream().map(resourceAssembler::toModel).toList());
     }
 
     @GetMapping("reports/out")
     public CollectionModel<PeriodicalReportResource> listForMonthAndCategory(@RequestParam(name = "start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start, @RequestParam(name = "end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
         List<PeriodicalReport> reports = service.reportOutgoingForPeriod(start, end);
 
-        return CollectionModel.of(reports.stream().map(report -> periodicalReportResourceAssembler.toModel(report)).toList());
+        return CollectionModel.of(reports.stream().map(periodicalReportResourceAssembler::toModel).toList());
     }
 }
