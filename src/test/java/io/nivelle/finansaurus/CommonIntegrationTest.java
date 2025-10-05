@@ -9,10 +9,8 @@ import io.nivelle.finansaurus.transactions.domain.TransactionRepository;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -39,8 +37,6 @@ public abstract class CommonIntegrationTest {
     protected TransactionRepository transactionRepository;
     @Autowired
     protected BalanceRepository balanceRepository;
-    @MockBean
-    private JwtDecoder jwtDecoder;
 
     protected Transaction saveTransaction(Transaction transaction) {
         return restTemplate.postForEntity("http://localhost:" + port + "/transactions", transaction, Transaction.class)
