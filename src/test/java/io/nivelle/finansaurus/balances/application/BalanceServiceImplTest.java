@@ -4,6 +4,8 @@ import io.nivelle.finansaurus.balances.domain.Balance;
 import io.nivelle.finansaurus.balances.domain.BalanceCategory;
 import io.nivelle.finansaurus.balances.domain.BalanceNotFoundException;
 import io.nivelle.finansaurus.balances.domain.BalanceRepository;
+import io.nivelle.finansaurus.categories.application.CategoryService;
+import io.nivelle.finansaurus.categories.domain.CategoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,9 +31,15 @@ public class BalanceServiceImplTest {
     @Mock
     private BalanceRepository repository;
 
+    @Mock
+    private CategoryRepository categoryRepository;
+
+    @Mock
+    private CategoryService categoryService;
+
     @BeforeEach
     public void setup() {
-        service = new BalanceServiceImpl(repository);
+        service = new BalanceServiceImpl(repository, categoryRepository, categoryService);
     }
 
     @Test

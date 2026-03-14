@@ -12,4 +12,6 @@ public interface CategoryService {
     List<Category> list();
 
     List<Category> listWithoutSystem();
+    
+    boolean isIncomingCategory(Long categoryId);
 }

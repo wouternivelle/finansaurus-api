@@ -4,9 +4,17 @@ import io.nivelle.finansaurus.balances.domain.Balance;
 import io.nivelle.finansaurus.balances.domain.BalanceCategory;
 import io.nivelle.finansaurus.balances.domain.BalanceNotFoundException;
 import io.nivelle.finansaurus.balances.domain.BalanceRepository;
+import io.nivelle.finansaurus.categories.application.CategoryService;
+import io.nivelle.finansaurus.categories.domain.Category;
+import io.nivelle.finansaurus.categories.domain.CategoryRepository;
+import io.nivelle.finansaurus.categories.domain.CategoryType;
+import io.nivelle.finansaurus.transactions.domain.Transaction;
+import io.nivelle.finansaurus.transactions.domain.TransactionType;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -14,10 +22,15 @@ import java.util.Optional;
 @Service
 public class BalanceServiceImpl implements BalanceService {
     private BalanceRepository repository;
+    private CategoryRepository categoryRepository;
+    private CategoryService categoryService;
 
     @Autowired
-    public BalanceServiceImpl(BalanceRepository repository) {
+    public BalanceServiceImpl(BalanceRepository repository, CategoryRepository categoryRepository, 
+                             CategoryService categoryService) {
         this.repository = repository;
+        this.categoryRepository = categoryRepository;
+        this.categoryService = categoryService;
     }
 
 
@@ -83,5 +96,77 @@ public class BalanceServiceImpl implements BalanceService {
         } else {
             return currentBalance;
         }
+    }
+
+    @Override
+    @Transactional
+    public void updateForTransactionAdded(Transaction transaction) {
+        Category incomeNextMonth = categoryRepository.findCategoryByType(CategoryType.INCOME_NEXT_MONTH);
+        boolean isIncomeNextMonth = transaction.getCategoryId().equals(incomeNextMonth.getId());
+        Balance balance = findOrCreateBalance(transaction, isIncomeNextMonth);
+
+        if (isIncoming(transaction)) {
+            balance.updateIncoming(balance.getIncoming().add(transaction.getAmount()));
+        } else {
+            BigDecimal amount;
+            if (TransactionType.IN.equals(transaction.getType())) {
+                amount = transaction.getAmount().negate();
+            } else {
+                amount = transaction.getAmount();
+            }
+            updateCategoryOutflow(balance, amount, transaction.getCategoryId());
+        }
+        repository.save(balance);
+    }
+
+    @Override
+    @Transactional
+    public void updateForTransactionDeleted(Transaction transaction) {
+        Category incomeNextMonth = categoryRepository.findCategoryByType(CategoryType.INCOME_NEXT_MONTH);
+        boolean isIncomeNextMonth = transaction.getCategoryId().equals(incomeNextMonth.getId());
+        Balance balance = findOrCreateBalance(transaction, isIncomeNextMonth);
+        
+        if (isIncoming(transaction)) {
+            balance.updateIncoming(balance.getIncoming().subtract(transaction.getAmount()));
+        } else {
+            BigDecimal amount;
+            if (TransactionType.IN.equals(transaction.getType())) {
+                amount = transaction.getAmount();
+            } else {
+                amount = transaction.getAmount().negate();
+            }
+            updateCategoryOutflow(balance, amount, transaction.getCategoryId());
+        }
+        repository.save(balance);
+    }
+
+    private Balance findOrCreateBalance(Transaction transaction, boolean isIncomeNextMonth) {
+        LocalDate date = transaction.getDate();
+        if (isIncomeNextMonth) {
+            date = date.plusMonths(1);
+        }
+
+        int month = date.getMonthValue();
+        int year = date.getYear();
+
+        return repository.findByMonthAndYear(month, year)
+                .orElseGet(() -> repository.save(Balance.builder().month(month).year(year).build()));
+    }
+
+    private boolean isIncoming(Transaction transaction) {
+        return categoryService.isIncomingCategory(transaction.getCategoryId());
+    }
+
+    private void updateCategoryOutflow(Balance balance, BigDecimal amount, Long categoryId) {
+        Optional<BalanceCategory> balanceCategory = balance.getCategories().stream()
+                .filter(category -> category.getCategoryId().equals(categoryId))
+                .findAny();
+        balanceCategory.ifPresentOrElse(
+                category -> category.updateOperations(category.getOperations().add(amount)),
+                () -> balance.getCategories().add(BalanceCategory.builder()
+                        .categoryId(categoryId)
+                        .operations(amount)
+                        .build())
+        );
     }
 }

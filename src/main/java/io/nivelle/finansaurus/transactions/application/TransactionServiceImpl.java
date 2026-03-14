@@ -1,14 +1,13 @@
 package io.nivelle.finansaurus.transactions.application;
 
-import io.nivelle.finansaurus.common.domain.DomainEventPublisher;
+import io.nivelle.finansaurus.accounts.application.AccountService;
+import io.nivelle.finansaurus.balances.application.BalanceService;
+import io.nivelle.finansaurus.payees.application.PayeeService;
 import io.nivelle.finansaurus.payees.domain.Payee;
-import io.nivelle.finansaurus.payees.domain.PayeeRepository;
 import io.nivelle.finansaurus.transactions.domain.PeriodicalReport;
 import io.nivelle.finansaurus.transactions.domain.Transaction;
 import io.nivelle.finansaurus.transactions.domain.TransactionNotFoundException;
 import io.nivelle.finansaurus.transactions.domain.TransactionRepository;
-import io.nivelle.finansaurus.transactions.domain.event.TransactionAddedEvent;
-import io.nivelle.finansaurus.transactions.domain.event.TransactionDeletedEvent;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +19,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
-import java.util.Optional;
 
 import static java.time.temporal.TemporalAdjusters.lastDayOfMonth;
 
@@ -28,14 +26,17 @@ import static java.time.temporal.TemporalAdjusters.lastDayOfMonth;
 public class TransactionServiceImpl implements TransactionService {
     private static final Logger LOGGER = LoggerFactory.getLogger(TransactionServiceImpl.class);
     private final TransactionRepository transactionRepository;
-    private final PayeeRepository payeeRepository;
-    private final DomainEventPublisher publisher;
+    private final PayeeService payeeService;
+    private final AccountService accountService;
+    private final BalanceService balanceService;
 
     @Autowired
-    TransactionServiceImpl(TransactionRepository transactionRepository, PayeeRepository payeeRepository, DomainEventPublisher publisher) {
+    TransactionServiceImpl(TransactionRepository transactionRepository, PayeeService payeeService, 
+                          AccountService accountService, BalanceService balanceService) {
         this.transactionRepository = transactionRepository;
-        this.payeeRepository = payeeRepository;
-        this.publisher = publisher;
+        this.payeeService = payeeService;
+        this.accountService = accountService;
+        this.balanceService = balanceService;
     }
 
     @Override
@@ -60,18 +61,13 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     private void addTransaction(Transaction transaction) {
-        Optional<Payee> foundPayee = payeeRepository.findPayeeByName(transaction.getPayeeName());
-        foundPayee.ifPresentOrElse(payee -> transaction.updatePayee(payee.getId()), () -> {
-            Payee payee = payeeRepository.save(Payee.builder()
-                    .name(transaction.getPayeeName())
-                    .lastCategoryId(transaction.getCategoryId())
-                    .build());
-            transaction.updatePayee(payee.getId());
-        });
+        Payee payee = payeeService.findOrCreateByName(transaction.getPayeeName(), transaction.getCategoryId());
+        transaction.updatePayee(payee.getId());
 
         transactionRepository.save(transaction);
 
-        publisher.publish(new TransactionAddedEvent(transaction));
+        accountService.updateBalanceForTransaction(transaction);
+        balanceService.updateForTransactionAdded(transaction);
 
         LOGGER.info("Added {}", transaction);
     }
@@ -79,7 +75,8 @@ public class TransactionServiceImpl implements TransactionService {
     private void deleteTransaction(Transaction transaction) {
         transactionRepository.deleteById(transaction.getId());
 
-        publisher.publish(new TransactionDeletedEvent(transaction));
+        accountService.reverseBalanceForTransaction(transaction);
+        balanceService.updateForTransactionDeleted(transaction);
 
         LOGGER.info("Deleted {}", transaction);
     }

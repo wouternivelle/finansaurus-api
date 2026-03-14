@@ -3,16 +3,15 @@ package io.nivelle.finansaurus.accounts.application;
 import io.nivelle.finansaurus.accounts.domain.Account;
 import io.nivelle.finansaurus.accounts.domain.AccountNotFoundException;
 import io.nivelle.finansaurus.accounts.domain.AccountRepository;
-import io.nivelle.finansaurus.accounts.domain.event.AccountSavedEvent;
-import io.nivelle.finansaurus.balances.domain.Balance;
-import io.nivelle.finansaurus.balances.domain.BalanceRepository;
+import io.nivelle.finansaurus.balances.application.BalanceService;
 import io.nivelle.finansaurus.categories.domain.CategoryRepository;
 import io.nivelle.finansaurus.categories.domain.CategoryType;
-import io.nivelle.finansaurus.common.domain.DomainEventPublisher;
 import io.nivelle.finansaurus.transactions.domain.Transaction;
 import io.nivelle.finansaurus.transactions.domain.TransactionRepository;
 import io.nivelle.finansaurus.transactions.domain.TransactionType;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
@@ -22,37 +21,40 @@ import java.util.List;
 
 @Service
 public class AccountServiceImpl implements AccountService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AccountServiceImpl.class);
     private AccountRepository repository;
     private TransactionRepository transactionRepository;
     private CategoryRepository categoryRepository;
-    private BalanceRepository balanceRepository;
-    private DomainEventPublisher publisher;
+    private BalanceService balanceService;
 
     @Autowired
-    public AccountServiceImpl(AccountRepository repository, TransactionRepository transactionRepository, CategoryRepository categoryRepository, BalanceRepository balanceRepository, DomainEventPublisher publisher) {
+    public AccountServiceImpl(AccountRepository repository, TransactionRepository transactionRepository, 
+                             CategoryRepository categoryRepository, BalanceService balanceService) {
         this.repository = repository;
         this.transactionRepository = transactionRepository;
         this.categoryRepository = categoryRepository;
-        this.balanceRepository = balanceRepository;
-        this.publisher = publisher;
+        this.balanceService = balanceService;
     }
 
     @Override
     @Transactional
     public Account save(Account account) {
         boolean isNew = account.getId() == null;
-
         account = repository.save(account);
-
-        publisher.publish(new AccountSavedEvent(account, isNew));
-
+        
         if (isNew) {
-            Transaction transaction = Transaction.builder().accountId(account.getId()).type(TransactionType.IN).amount(account.getAmount()).categoryId(categoryRepository.findCategoryByType(CategoryType.INITIAL).getId()).date(LocalDate.now()).build();
+            // Create initial transaction for new account
+            Transaction transaction = Transaction.builder()
+                    .accountId(account.getId())
+                    .type(TransactionType.IN)
+                    .amount(account.getAmount())
+                    .categoryId(categoryRepository.findCategoryByType(CategoryType.INITIAL).getId())
+                    .date(LocalDate.now())
+                    .build();
             transactionRepository.save(transaction);
-
-            addToBalance(transaction);
+            balanceService.updateForTransactionAdded(transaction);
         }
-
+        
         return account;
     }
 
@@ -75,20 +77,39 @@ public class AccountServiceImpl implements AccountService {
         return repository.findAll();
     }
 
-    private void addToBalance(Transaction transaction) {
-        Balance balance = findOrCreateBalance(transaction);
+    @Override
+    @Transactional
+    public void updateBalanceForTransaction(Transaction transaction) {
+        Account account = repository.findById(transaction.getAccountId())
+                .orElseThrow(() -> new AccountNotFoundException(transaction.getAccountId()));
 
-        balance.updateIncoming(balance.getIncoming().add(transaction.getAmount()));
-        balanceRepository.save(balance);
+        if (transaction.getType().equals(TransactionType.IN)) {
+            account.updateAmount(account.getAmount().add(transaction.getAmount()));
+            LOGGER.info("Added {} to account '{}' resulting in total of {}", 
+                    transaction.getAmount(), account.getName(), account.getAmount());
+        } else {
+            account.updateAmount(account.getAmount().subtract(transaction.getAmount()));
+            LOGGER.info("Subtracted {} from account '{}' resulting in total of {}", 
+                    transaction.getAmount(), account.getName(), account.getAmount());
+        }
+        repository.save(account);
     }
 
-    private Balance findOrCreateBalance(Transaction transaction) {
-        LocalDate date = transaction.getDate();
+    @Override
+    @Transactional
+    public void reverseBalanceForTransaction(Transaction transaction) {
+        Account account = repository.findById(transaction.getAccountId())
+                .orElseThrow(() -> new AccountNotFoundException(transaction.getAccountId()));
 
-        int month = date.getMonthValue();
-        int year = date.getYear();
-
-        return balanceRepository.findByMonthAndYear(month, year)
-                .orElseGet(() -> balanceRepository.save(Balance.builder().month(month).year(year).build()));
+        if (transaction.getType().equals(TransactionType.IN)) {
+            account.updateAmount(account.getAmount().subtract(transaction.getAmount()));
+            LOGGER.info("Subtracted {} from account '{}' resulting in total of {}", 
+                    transaction.getAmount(), account.getName(), account.getAmount());
+        } else {
+            account.updateAmount(account.getAmount().add(transaction.getAmount()));
+            LOGGER.info("Added {} to account '{}' resulting in total of {}", 
+                    transaction.getAmount(), account.getName(), account.getAmount());
+        }
+        repository.save(account);
     }
 }

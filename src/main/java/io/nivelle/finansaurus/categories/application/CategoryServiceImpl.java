@@ -2,6 +2,7 @@ package io.nivelle.finansaurus.categories.application;
 
 import io.nivelle.finansaurus.categories.domain.Category;
 import io.nivelle.finansaurus.categories.domain.CategoryRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,11 +18,13 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Transactional
     public Category save(Category category) {
         return repository.save(category);
     }
 
     @Override
+    @Transactional
     public void delete(long id) {
         repository.deleteById(id);
     }
@@ -34,5 +37,10 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public List<Category> listWithoutSystem() {
         return repository.findAllBySystemIsFalse();
+    }
+
+    @Override
+    public boolean isIncomingCategory(Long categoryId) {
+        return repository.isIncomingCategory(categoryId);
     }
 }

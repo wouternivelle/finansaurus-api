@@ -12,4 +12,6 @@ public interface PayeeService {
     void delete(long id);
 
     List<Payee> list();
+    
+    Payee findOrCreateByName(String name, Long lastCategoryId);
 }

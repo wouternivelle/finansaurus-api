@@ -1,13 +1,10 @@
 package io.nivelle.finansaurus.transactions.application;
 
-import io.nivelle.finansaurus.common.domain.DomainEvent;
-import io.nivelle.finansaurus.common.domain.DomainEventPublisher;
+import io.nivelle.finansaurus.accounts.application.AccountService;
+import io.nivelle.finansaurus.balances.application.BalanceService;
+import io.nivelle.finansaurus.payees.application.PayeeService;
 import io.nivelle.finansaurus.payees.domain.Payee;
-import io.nivelle.finansaurus.payees.domain.PayeeRepository;
 import io.nivelle.finansaurus.transactions.domain.*;
-import io.nivelle.finansaurus.transactions.domain.event.TransactionAddedEvent;
-import io.nivelle.finansaurus.transactions.domain.event.TransactionDeletedEvent;
-import org.hamcrest.core.IsInstanceOf;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,7 +24,6 @@ import static io.nivelle.finansaurus.transactions.application.TransactionTestDat
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -40,30 +36,29 @@ public class TransactionServiceImplTest {
     @Mock
     private TransactionRepository repository;
     @Mock
-    private PayeeRepository payeeRepository;
+    private PayeeService payeeService;
     @Mock
-    private DomainEventPublisher publisher;
+    private AccountService accountService;
+    @Mock
+    private BalanceService balanceService;
 
     @BeforeEach
     public void setup() {
-        service = new TransactionServiceImpl(repository, payeeRepository, publisher);
+        service = new TransactionServiceImpl(repository, payeeService, accountService, balanceService);
     }
 
     @Test
     public void whenSavingNewOutTransactionWithNewPayee_thenTransactionSavedAndPayeeCreated() {
         Transaction transaction = buildTransaction(TransactionType.OUT);
-        when(payeeRepository.save(any(Payee.class)))
+        when(payeeService.findOrCreateByName(eq(transaction.getPayeeName()), eq(transaction.getCategoryId())))
                 .thenReturn(Payee.builder().id(1L).build());
 
         service.save(transaction);
 
-        ArgumentCaptor<Payee> payeeCaptor = ArgumentCaptor.forClass(Payee.class);
-        verify(payeeRepository).save(payeeCaptor.capture());
-        Payee payee = payeeCaptor.getValue();
-        assertThat(payee.getName(), equalTo(transaction.getPayeeName()));
-        assertThat(payee.getLastCategoryId(), equalTo(transaction.getCategoryId()));
+        verify(payeeService).findOrCreateByName(eq(transaction.getPayeeName()), eq(transaction.getCategoryId()));
         verify(repository).save(eq(transaction));
-        verify(publisher).publish(eq(new TransactionAddedEvent(transaction)));
+        verify(accountService).updateBalanceForTransaction(eq(transaction));
+        verify(balanceService).updateForTransactionAdded(eq(transaction));
     }
 
     @Test
@@ -71,39 +66,36 @@ public class TransactionServiceImplTest {
         Transaction transaction = buildExistingTransaction(TransactionType.OUT);
         when(repository.findById(eq(1L)))
                 .thenReturn(Optional.of(transaction));
-        when(payeeRepository.save(any(Payee.class)))
+        when(payeeService.findOrCreateByName(eq(transaction.getPayeeName()), eq(transaction.getCategoryId())))
                 .thenReturn(Payee.builder().id(1L).build());
 
         service.save(transaction);
 
-        ArgumentCaptor<Payee> payeeCaptor = ArgumentCaptor.forClass(Payee.class);
-        verify(payeeRepository).save(payeeCaptor.capture());
-        Payee payee = payeeCaptor.getValue();
-        assertThat(payee.getName(), equalTo(transaction.getPayeeName()));
-        assertThat(payee.getLastCategoryId(), equalTo(transaction.getCategoryId()));
+        verify(payeeService).findOrCreateByName(eq(transaction.getPayeeName()), eq(transaction.getCategoryId()));
         verify(repository).deleteById(eq(1L));
         verify(repository).save(any(Transaction.class));
-        var captor = ArgumentCaptor.forClass(DomainEvent.class);
-        verify(publisher, times(2)).publish(captor.capture());
-        assertThat(captor.getAllValues().getFirst(), equalTo(new TransactionDeletedEvent(transaction)));
-        assertThat(captor.getAllValues().get(1), instanceOf(TransactionAddedEvent.class));
+        verify(accountService).reverseBalanceForTransaction(eq(transaction));
+        verify(balanceService).updateForTransactionDeleted(eq(transaction));
+        verify(accountService).updateBalanceForTransaction(any(Transaction.class));
+        verify(balanceService).updateForTransactionAdded(any(Transaction.class));
     }
 
     @Test
     public void whenSavingNewIncomingTransactionWithExistingPayee_thenTransactionAndPayeeSaved() {
         Transaction transaction = buildTransaction(TransactionType.IN);
-        when(payeeRepository.findPayeeByName("payee 1"))
-                .thenReturn(Optional.of(Payee.builder().id(1L).build()));
+        when(payeeService.findOrCreateByName(eq("payee 1"), eq(transaction.getCategoryId())))
+                .thenReturn(Payee.builder().id(1L).build());
 
         service.save(transaction);
 
         verify(repository).save(eq(transaction));
         assertThat(transaction.getPayeeId(), equalTo(1L));
-        verify(payeeRepository, times(0)).save(any(Payee.class));
+        verify(accountService).updateBalanceForTransaction(eq(transaction));
+        verify(balanceService).updateForTransactionAdded(eq(transaction));
     }
 
     @Test
-    public void whenDeletingOutTransaction_thenAccountAddedAndExistingBalanceCategoryUpdated() {
+    public void whenDeletingOutTransaction_thenAccountAndBalanceUpdated() {
         Transaction transaction = buildExistingTransaction(TransactionType.OUT);
         when(repository.findById(eq(1L)))
                 .thenReturn(Optional.of(transaction));
@@ -111,7 +103,8 @@ public class TransactionServiceImplTest {
         service.delete(1L);
 
         verify(repository).deleteById(eq(1L));
-        verify(publisher).publish(eq(new TransactionDeletedEvent(transaction)));
+        verify(accountService).reverseBalanceForTransaction(eq(transaction));
+        verify(balanceService).updateForTransactionDeleted(eq(transaction));
     }
 
     @Test

@@ -3,12 +3,10 @@ package io.nivelle.finansaurus.accounts.application;
 import io.nivelle.finansaurus.accounts.domain.Account;
 import io.nivelle.finansaurus.accounts.domain.AccountNotFoundException;
 import io.nivelle.finansaurus.accounts.domain.AccountRepository;
-import io.nivelle.finansaurus.balances.domain.Balance;
-import io.nivelle.finansaurus.balances.domain.BalanceRepository;
+import io.nivelle.finansaurus.balances.application.BalanceService;
 import io.nivelle.finansaurus.categories.domain.Category;
 import io.nivelle.finansaurus.categories.domain.CategoryRepository;
 import io.nivelle.finansaurus.categories.domain.CategoryType;
-import io.nivelle.finansaurus.common.domain.DomainEventPublisher;
 import io.nivelle.finansaurus.transactions.domain.Transaction;
 import io.nivelle.finansaurus.transactions.domain.TransactionRepository;
 import io.nivelle.finansaurus.transactions.domain.TransactionType;
@@ -29,6 +27,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -46,30 +45,29 @@ public class AccountServiceImplTest {
     private CategoryRepository categoryRepository;
 
     @Mock
-    private BalanceRepository balanceRepository;
-    @Mock
-    private DomainEventPublisher publisher;
+    private BalanceService balanceService;
 
     @BeforeEach
     public void setup() {
-        service = new AccountServiceImpl(repository, transactionRepository, categoryRepository, balanceRepository, publisher);
+        service = new AccountServiceImpl(repository, transactionRepository, categoryRepository, balanceService);
     }
 
     @Test
-    public void whenSavingNewAccount_thenAccountAndInitialTransactionAndNewBalanceCreated() {
+    public void whenSavingNewAccount_thenAccountAndInitialTransactionCreated() {
         Account account = Account.builder().amount(new BigDecimal("100")).build();
         when(repository.save(eq(account)))
                 .thenReturn(Account.builder().id(1L).amount(new BigDecimal("100")).build());
         when(categoryRepository.findCategoryByType(eq(CategoryType.INITIAL)))
                 .thenReturn(Category.builder().id(1L).build());
-        Transaction transaction = Transaction.builder().accountId(1L).type(TransactionType.IN).amount(account.getAmount()).categoryId(1L).date(LocalDate.now()).build();
+        Transaction transaction = Transaction.builder()
+                .accountId(1L)
+                .type(TransactionType.IN)
+                .amount(account.getAmount())
+                .categoryId(1L)
+                .date(LocalDate.now())
+                .build();
         when(transactionRepository.save(any(Transaction.class)))
                 .thenReturn(transaction);
-        when(balanceRepository.findByMonthAndYear(eq(LocalDate.now().getMonthValue()), eq(LocalDate.now().getYear())))
-                .thenReturn(Optional.empty());
-        Balance balance = Balance.builder().month(LocalDate.now().getMonthValue()).year(LocalDate.now().getYear()).build();
-        when(balanceRepository.save(any(Balance.class)))
-                .thenReturn(balance);
 
         service.save(account);
 
@@ -83,13 +81,7 @@ public class AccountServiceImplTest {
         assertThat(transaction.getAccountId(), equalTo(1L));
         assertThat(transaction.getDate(), equalTo(LocalDate.now()));
         assertThat(transaction.getCategoryId(), equalTo(1L));
-        ArgumentCaptor<Balance> balanceCaptor = ArgumentCaptor.forClass(Balance.class);
-        verify(balanceRepository, times(2)).save(balanceCaptor.capture());
-        balance = balanceCaptor.getValue();
-        assertThat(balance.getYear(), equalTo(LocalDate.now().getYear()));
-        assertThat(balance.getMonth(), equalTo(LocalDate.now().getMonthValue()));
-        assertThat(balance.getIncoming(), equalTo(account.getAmount()));
-        verify(balanceRepository).findByMonthAndYear(eq(LocalDate.now().getMonthValue()), eq(LocalDate.now().getYear()));
+        verify(balanceService).updateForTransactionAdded(any(Transaction.class));
     }
 
     @Test
@@ -100,12 +92,12 @@ public class AccountServiceImplTest {
 
         Account result = service.save(account);
 
-        verifyNoInteractions(categoryRepository, transactionRepository, balanceRepository);
+        verifyNoInteractions(categoryRepository, transactionRepository, balanceService);
         verify(repository).save(eq(account));
 
         assertThat(result, equalTo(account));
     }
-
+    
     @Test
     public void whenDeleting_withExistingAccount_thenDeleted() {
         service.delete(1L);

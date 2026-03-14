@@ -3,6 +3,7 @@ package io.nivelle.finansaurus.payees.application;
 import io.nivelle.finansaurus.payees.domain.Payee;
 import io.nivelle.finansaurus.payees.domain.PayeeNotFoundException;
 import io.nivelle.finansaurus.payees.domain.PayeeRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class PayeeServiceImpl implements PayeeService {
     }
 
     @Override
+    @Transactional
     public Payee save(Payee payee) {
         return repository.save(payee);
     }
@@ -29,6 +31,7 @@ public class PayeeServiceImpl implements PayeeService {
     }
 
     @Override
+    @Transactional
     public void delete(long id) {
         try {
             repository.deleteById(id);
@@ -40,5 +43,15 @@ public class PayeeServiceImpl implements PayeeService {
     @Override
     public List<Payee> list() {
         return repository.findAll();
+    }
+
+    @Override
+    @Transactional
+    public Payee findOrCreateByName(String name, Long lastCategoryId) {
+        return repository.findPayeeByName(name)
+                .orElseGet(() -> repository.save(Payee.builder()
+                        .name(name)
+                        .lastCategoryId(lastCategoryId)
+                        .build()));
     }
 }
